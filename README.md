@@ -1,0 +1,3 @@
+## EventEmitter - Rust
+仿造Node Eventemitter的rust事件总线
+开发中...
