@@ -8,13 +8,13 @@ pub trait EventEmitter {
 
     fn once<F>(&self, event: &str, callback: F) -> ListenerId
     where
-        F: Fn(&[Box<dyn Any>]) + Send + Sync + 'static;
+        F: Fn(&[Box<dyn Any>]) + 'static;
 
     fn off(&self, event: &str, id: ListenerId) -> bool;
 
     fn off_all(&self, event: &str);
 
-    fn emit(&self, event: &str, data: Vec<Box<dyn Any>>);
+    fn emit(&self, event: &str, args: Vec<Box<dyn Any>>);
 }
 
 pub trait AsyncEventEmitter {}

@@ -8,10 +8,11 @@ pub enum Callback {
 }
 
 pub struct Listener {
-    id: ListenerId,
-    callback: Rc<dyn Fn(&[Box<dyn Any>])>,
-    once: bool,
+    pub id: ListenerId,
+    pub callback: Rc<dyn Fn(&[Box<dyn Any>])>,
+    pub once: bool,
 }
+
 impl Debug for Listener {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("Listener")
