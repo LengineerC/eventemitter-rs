@@ -1,4 +1,4 @@
-use std::{any::Any, fmt::Debug, pin::Pin, rc::Rc};
+use std::{any::Any, fmt::Debug, pin::Pin, rc::Rc, sync::Arc};
 
 pub type ListenerId = u64;
 
@@ -16,6 +16,21 @@ pub struct Listener {
 impl Debug for Listener {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("Listener")
+            .field("id", &self.id)
+            .field("once", &self.once)
+            .finish()
+    }
+}
+
+pub struct ThreadSafeListener {
+    pub id: ListenerId,
+    pub callback: Arc<dyn Fn(&[Box<dyn Any + Send + Sync>]) + Send + Sync>,
+    pub once: bool,
+}
+
+impl Debug for ThreadSafeListener {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("ThreadSafeListener")
             .field("id", &self.id)
             .field("once", &self.once)
             .finish()
