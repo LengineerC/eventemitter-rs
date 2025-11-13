@@ -1,4 +1,3 @@
-use std::any::Any;
 use std::collections::HashMap;
 use std::sync::Arc;
 use std::sync::Mutex;
@@ -6,21 +5,22 @@ use std::sync::atomic::AtomicU64;
 use std::sync::atomic::Ordering;
 
 use crate::basis::*;
+use crate::types::*;
 
 pub trait ThreadSafeEventEmitter: Send + Sync {
     fn on<F>(&self, event: &str, callback: F) -> ListenerId
     where
-        F: Fn(&[Box<dyn Any + Send + Sync>]) + Send + Sync + 'static;
+        F: Fn(ThreadSafeArgs) + Send + Sync + 'static;
 
     fn once<F>(&self, event: &str, callback: F) -> ListenerId
     where
-        F: Fn(&[Box<dyn Any + Send + Sync>]) + Send + Sync + 'static;
+        F: Fn(ThreadSafeArgs) + Send + Sync + 'static;
 
     fn off(&self, event: &str, id: ListenerId) -> bool;
 
     fn off_all(&self, event: &str);
 
-    fn emit(&self, event: &str, args: Vec<Box<dyn Any + Send + Sync>>);
+    fn emit(&self, event: &str, args: Vec<ThreadSafeArg>);
 }
 
 pub trait ThreadSafeAsyncEventEmitter {}
@@ -47,7 +47,7 @@ impl MultiThreadEventEmitter {
 impl ThreadSafeEventEmitter for MultiThreadEventEmitter {
     fn on<F>(&self, event: &str, callback: F) -> ListenerId
     where
-        F: Fn(&[Box<dyn Any + Send + Sync>]) + Send + Sync + 'static,
+        F: Fn(ThreadSafeArgs) + Send + Sync + 'static,
     {
         let id = self.get_id();
         let listener = ThreadSafeListener {
@@ -67,7 +67,7 @@ impl ThreadSafeEventEmitter for MultiThreadEventEmitter {
 
     fn once<F>(&self, event: &str, callback: F) -> ListenerId
     where
-        F: Fn(&[Box<dyn Any + Send + Sync>]) + Send + Sync + 'static,
+        F: Fn(ThreadSafeArgs) + Send + Sync + 'static,
     {
         let id = self.get_id();
         let listener = ThreadSafeListener {
@@ -102,8 +102,8 @@ impl ThreadSafeEventEmitter for MultiThreadEventEmitter {
         self.listeners.lock().unwrap().remove(event);
     }
 
-    fn emit(&self, event: &str, args: Vec<Box<dyn Any + Send + Sync>>) {
-        let callbacks: Vec<Arc<dyn Fn(&[Box<dyn Any + Send + Sync>]) + Send + Sync>> = {
+    fn emit(&self, event: &str, args: Vec<ThreadSafeArg>) {
+        let callbacks: Vec<SyncThreadSafeCallback> = {
             let listeners = self.listeners.lock().unwrap();
 
             if let Some(listener) = listeners.get(event) {

@@ -1,15 +1,19 @@
-use std::{any::Any, fmt::Debug, pin::Pin, rc::Rc, sync::Arc};
-
-pub type ListenerId = u64;
+use std::fmt::Debug;
+use crate::types::*;
 
 pub enum Callback {
-    Sync(Rc<dyn Fn(&[Box<dyn Any>])>),
-    // Async(Rc<dyn Fn(&[Box<dyn Any>]) -> Pin<Box<dyn Future<Output = ()>>>>),
+    Sync(SyncCallback),
+    Async(AsyncCallback),
+}
+
+pub enum ThreadSafeCallback {
+    Sync(SyncThreadSafeCallback),
+    Async(AsyncThreadSafeCallback),
 }
 
 pub struct Listener {
     pub id: ListenerId,
-    pub callback: Rc<dyn Fn(&[Box<dyn Any>])>,
+    pub callback: SyncCallback,
     pub once: bool,
 }
 
@@ -24,7 +28,7 @@ impl Debug for Listener {
 
 pub struct ThreadSafeListener {
     pub id: ListenerId,
-    pub callback: Arc<dyn Fn(&[Box<dyn Any + Send + Sync>]) + Send + Sync>,
+    pub callback: SyncThreadSafeCallback,
     pub once: bool,
 }
 

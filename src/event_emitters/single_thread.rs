@@ -1,24 +1,24 @@
-use std::any::Any;
 use std::cell::RefCell;
 use std::collections::HashMap;
 use std::rc::Rc;
 
 use crate::basis::*;
+use crate::types::*;
 
 pub trait EventEmitter {
     fn on<F>(&self, event: &str, callback: F) -> ListenerId
     where
-        F: Fn(&[Box<dyn Any>]) + 'static;
+        F: Fn(Args) + 'static;
 
     fn once<F>(&self, event: &str, callback: F) -> ListenerId
     where
-        F: Fn(&[Box<dyn Any>]) + 'static;
+        F: Fn(Args) + 'static;
 
     fn off(&self, event: &str, id: ListenerId) -> bool;
 
     fn off_all(&self, event: &str);
 
-    fn emit(&self, event: &str, args: Vec<Box<dyn Any>>);
+    fn emit(&self, event: &str, args: Vec<Arg>);
 }
 
 pub trait AsyncEventEmitter {}
@@ -49,7 +49,7 @@ impl SingleThreadEventEmitter {
 impl EventEmitter for SingleThreadEventEmitter {
     fn on<F>(&self, event: &str, callback: F) -> ListenerId
     where
-        F: Fn(&[Box<dyn std::any::Any>]) + 'static,
+        F: Fn(Args) + 'static,
     {
         let id = self.get_id();
         let listener = Listener {
@@ -69,7 +69,7 @@ impl EventEmitter for SingleThreadEventEmitter {
 
     fn once<F>(&self, event: &str, callback: F) -> ListenerId
     where
-        F: Fn(&[Box<dyn std::any::Any>]) + 'static,
+        F: Fn(Args) + 'static,
     {
         let id = self.get_id();
         let listener = Listener {
@@ -104,8 +104,8 @@ impl EventEmitter for SingleThreadEventEmitter {
         self.listeners.borrow_mut().remove(event);
     }
 
-    fn emit(&self, event: &str, args: Vec<Box<dyn std::any::Any>>) {
-        let callbacks: Vec<Rc<dyn Fn(&[Box<dyn std::any::Any>])>> = {
+    fn emit(&self, event: &str, args: Vec<Arg>) {
+        let callbacks: Vec<SyncCallback> = {
             let listeners = self.listeners.borrow();
             
             if let Some(listener) = listeners.get(event) {
