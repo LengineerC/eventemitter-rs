@@ -7,7 +7,7 @@ A Node.js-style event bus in Rust with synchronous and asynchronous support (via
 ```toml
 # Cargo.toml
 [dependencies]
-event_emitter = { path = "../path_to_your_crate" }
+nodevent = { path = "../path_to_your_crate" }
 tokio = { version = "1", features = ["full"] }
 ```
 
@@ -16,7 +16,7 @@ tokio = { version = "1", features = ["full"] }
 ## 1. Synchronous Event Handling
 
 ```rust
-use event_emitter::{MultiThreadEventEmitter, args};
+use nodevent::{MultiThreadEventEmitter, args};
 
 fn main() {
     let emitter = MultiThreadEventEmitter::new();
@@ -42,7 +42,7 @@ fn main() {
 ## 2. Thread-Safe / Multi-Threaded Event Handling
 
 ```rust
-use event_emitter::{MultiThreadEventEmitter, ts_args};
+use nodevent::{MultiThreadEventEmitter, ts_args};
 use std::sync::{Arc, Mutex};
 use tokio::runtime::Runtime;
 
@@ -70,7 +70,7 @@ fn main() {
 ## 3. Asynchronous Event Handling
 
 ```rust
-use event_emitter::{MultiThreadEventEmitter, ts_args};
+use nodevent::{MultiThreadEventEmitter, ts_args};
 use tokio::runtime::Runtime;
 
 async fn async_test(n: i32) {
@@ -116,7 +116,7 @@ fn main() {
 ## 4. Macros
 
 ```rust
-use event_emitter::{args, ts_args};
+use nodevent::{args, ts_args};
 
 // Synchronous args (single-threaded)
 let sync_args = args![1, "hello", true];
