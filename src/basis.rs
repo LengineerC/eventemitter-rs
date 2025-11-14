@@ -1,40 +1,42 @@
 use std::fmt::Debug;
 use crate::types::*;
 
+#[derive(Clone)]
 pub enum Callback {
     Sync(SyncCallback),
     Async(AsyncCallback),
 }
 
+#[derive(Clone)]
 pub enum ThreadSafeCallback {
     Sync(SyncThreadSafeCallback),
     Async(AsyncThreadSafeCallback),
 }
 
-pub struct Listener {
-    pub id: ListenerId,
-    pub callback: SyncCallback,
+pub struct Handler {
+    pub id: HandlerId,
+    pub callback: Callback,
     pub once: bool,
 }
 
-impl Debug for Listener {
+impl Debug for Handler {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.debug_struct("Listener")
+        f.debug_struct("Handler")
             .field("id", &self.id)
             .field("once", &self.once)
             .finish()
     }
 }
 
-pub struct ThreadSafeListener {
-    pub id: ListenerId,
+pub struct ThreadSafeHandler {
+    pub id: HandlerId,
     pub callback: SyncThreadSafeCallback,
     pub once: bool,
 }
 
-impl Debug for ThreadSafeListener {
+impl Debug for ThreadSafeHandler {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.debug_struct("ThreadSafeListener")
+        f.debug_struct("ThreadSafeHandler")
             .field("id", &self.id)
             .field("once", &self.once)
             .finish()

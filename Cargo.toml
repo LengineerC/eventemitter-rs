@@ -5,6 +5,4 @@ edition = "2024"
 authors = ["LengineerC"]
 
 [dependencies]
-
-[dev-dependencies]
 tokio = { version = "1.0", features = ["full", "rt-multi-thread"] }

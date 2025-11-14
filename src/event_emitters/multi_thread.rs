@@ -8,15 +8,15 @@ use crate::basis::*;
 use crate::types::*;
 
 pub trait ThreadSafeEventEmitter: Send + Sync {
-    fn on<F>(&self, event: &str, callback: F) -> ListenerId
+    fn on<F>(&self, event: &str, callback: F) -> HandlerId
     where
         F: Fn(ThreadSafeArgs) + Send + Sync + 'static;
 
-    fn once<F>(&self, event: &str, callback: F) -> ListenerId
+    fn once<F>(&self, event: &str, callback: F) -> HandlerId
     where
         F: Fn(ThreadSafeArgs) + Send + Sync + 'static;
 
-    fn off(&self, event: &str, id: ListenerId) -> bool;
+    fn off(&self, event: &str, id: HandlerId) -> bool;
 
     fn off_all(&self, event: &str);
 
@@ -27,7 +27,7 @@ pub trait ThreadSafeAsyncEventEmitter {}
 
 #[derive(Clone)]
 pub struct MultiThreadEventEmitter {
-    listeners: Arc<Mutex<HashMap<String, Vec<ThreadSafeListener>>>>,
+    listeners: Arc<Mutex<HashMap<String, Vec<ThreadSafeHandler>>>>,
     id_counter: Arc<AtomicU64>,
 }
 
@@ -39,18 +39,18 @@ impl MultiThreadEventEmitter {
         }
     }
 
-    fn get_id(&self) -> ListenerId {
+    fn get_id(&self) -> HandlerId {
         self.id_counter.fetch_add(1, Ordering::SeqCst)
     }
 }
 
 impl ThreadSafeEventEmitter for MultiThreadEventEmitter {
-    fn on<F>(&self, event: &str, callback: F) -> ListenerId
+    fn on<F>(&self, event: &str, callback: F) -> HandlerId
     where
         F: Fn(ThreadSafeArgs) + Send + Sync + 'static,
     {
         let id = self.get_id();
-        let listener = ThreadSafeListener {
+        let handler = ThreadSafeHandler {
             id,
             callback: Arc::new(callback),
             once: false,
@@ -60,17 +60,17 @@ impl ThreadSafeEventEmitter for MultiThreadEventEmitter {
         listeners
             .entry(event.to_string())
             .or_default()
-            .push(listener);
+            .push(handler);
 
         id
     }
 
-    fn once<F>(&self, event: &str, callback: F) -> ListenerId
+    fn once<F>(&self, event: &str, callback: F) -> HandlerId
     where
         F: Fn(ThreadSafeArgs) + Send + Sync + 'static,
     {
         let id = self.get_id();
-        let listener = ThreadSafeListener {
+        let handler = ThreadSafeHandler {
             id,
             callback: Arc::new(callback),
             once: true,
@@ -80,19 +80,19 @@ impl ThreadSafeEventEmitter for MultiThreadEventEmitter {
         listeners
             .entry(event.to_string())
             .or_default()
-            .push(listener);
+            .push(handler);
 
         id
     }
 
-    fn off(&self, event: &str, id: ListenerId) -> bool {
+    fn off(&self, event: &str, id: HandlerId) -> bool {
         let mut listeners = self.listeners.lock().unwrap();
 
-        if let Some(ls) = listeners.get_mut(event) {
-            let len = ls.len();
-            ls.retain(|l| l.id != id);
+        if let Some(handlers) = listeners.get_mut(event) {
+            let len = handlers.len();
+            handlers.retain(|h| h.id != id);
 
-            return len != ls.len();
+            return len != handlers.len();
         }
 
         false

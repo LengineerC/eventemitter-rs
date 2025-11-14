@@ -1,6 +1,6 @@
 use std::{any::Any, pin::Pin, rc::Rc, sync::Arc};
 
-pub type ListenerId = u64;
+pub type HandlerId = u64;
 
 pub type Arg = Box<dyn Any>;
 pub type ThreadSafeArg = Box<dyn Any + Send + Sync>;
