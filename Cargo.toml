@@ -11,10 +11,7 @@ repository = "https://github.com/LengineerC/eventemitter-rs"
 keywords = ["event_bus", "event"]
 categories = [
     "data-structures",
-    "communication",
-    "utilities",
-    "asynchronous",
-    "concurrent",
+    "asynchronous"
 ]
 exclude = ["target/*", "tests/*"]
 
