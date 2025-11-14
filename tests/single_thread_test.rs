@@ -34,10 +34,11 @@ fn test_event_arguments() {
         }
     });
 
-    let args = Rc::new(vec![
-        Box::new("hello".to_string()) as Box<dyn Any>,
-        Box::new("world".to_string()) as Box<dyn Any>,
-    ]);
+    // let args = Rc::new(vec![
+    //     Box::new("hello".to_string()) as Box<dyn Any>,
+    //     Box::new("world".to_string()) as Box<dyn Any>,
+    // ]);
+    let args = args![String::from("hello"), String::from("world"),];
 
     emitter.emit("data", args);
 

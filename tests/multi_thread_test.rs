@@ -16,7 +16,8 @@ fn test_basic_emit_and_on() {
         *result_clone.lock().unwrap() = Some(msg.clone());
     });
 
-    emitter.emit("hello", Arc::new(vec![Box::new("world".to_string())]));
+    // emitter.emit("hello", Arc::new(vec![Box::new("world".to_string())]));
+    emitter.emit("hello", ts_args!["world".to_string()]);
 
     assert_eq!(result.lock().unwrap().clone(), Some("world".to_string()));
 }
@@ -312,7 +313,7 @@ async fn multithread_event_test() {
     // -------- 开启 10 个线程并发 emit --------
     let mut handles = vec![];
 
-    for i in 0..10 {
+    for _ in 0..10 {
         let emitter = emitter.clone();
         handles.push(thread::spawn(move || {
             for _ in 0..100 {
