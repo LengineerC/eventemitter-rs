@@ -13,13 +13,13 @@ tokio = { version = "1", features = ["full"] }
 
 ---
 
-## 1. Synchronous Event Handling
+## 1. Single-Thread / Synchronous Event Handling
 
 ```rust
-use nodevent::{MultiThreadEventEmitter, args};
+use nodevent::{SingleThreadEventEmitter, args};
 
 fn main() {
-    let emitter = MultiThreadEventEmitter::new();
+    let emitter = SingleThreadEventEmitter::new();
 
     // Register a synchronous listener
     emitter.on("hello", |args| {
@@ -29,17 +29,27 @@ fn main() {
 
     // Emit an event
     emitter.emit("hello", args!["world"]);
+
+    // Register a once-only listener
+    emitter.once("greet_once", |args| {
+        let name = args[0].downcast_ref::<String>().unwrap();
+        println!("Greetings, {}", name);
+    });
+
+    emitter.emit("greet_once", args!["Alice"]);
+    emitter.emit("greet_once", args!["Bob"]); // Won't be called
 }
 ```
 
 * `on(event, callback)`: Registers a persistent listener.
-* `once(event, callback)`: Registers a listener that will be removed after first call.
+* `once(event, callback)`: Registers a listener that is automatically removed after first call.
 * `off(event, id)`: Removes a specific listener by its ID.
 * `off_all(event)`: Removes all listeners for an event.
+* `emit(event, args)`: Emits an event with `Rc<Vec<Box<dyn Any>>>` arguments.
 
 ---
 
-## 2. Thread-Safe / Multi-Threaded Event Handling
+## 2. Multi-Thread / Thread-Safe Event Handling
 
 ```rust
 use nodevent::{MultiThreadEventEmitter, ts_args};
@@ -62,7 +72,7 @@ fn main() {
 }
 ```
 
-* Use `ts_args!` to pass arguments in a thread-safe way (`Arc<Vec<Box<dyn Any + Send + Sync>>>`).
+* Use `ts_args!` to pass thread-safe arguments (`Arc<Vec<Box<dyn Any + Send + Sync>>>`).
 * Multi-threaded emitters require a `tokio::runtime::Handle` to run async tasks.
 
 ---
