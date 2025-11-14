@@ -122,7 +122,7 @@ impl EventEmitter for SingleThreadEventEmitter {
 
         for callback in &callbacks {
             if let Callback::Sync(cb) = callback {
-                cb(&args);
+                cb(args.clone());
             }
         }
 
@@ -130,7 +130,7 @@ impl EventEmitter for SingleThreadEventEmitter {
             if let Callback::Async(cb) = callback {
                 let args_clone = args.clone();
                 tokio::task::spawn_local(async move {
-                    cb(&args_clone).await;
+                    cb(args_clone).await;
                 });
             }
         }

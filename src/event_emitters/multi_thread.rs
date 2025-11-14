@@ -27,14 +27,14 @@ pub trait ThreadSafeEventEmitter: Send + Sync {
 pub trait ThreadSafeAsyncEventEmitter {
     fn on_async<F>(&self, event: &str, callback: F) -> HandlerId
     where
-        F: Fn(ThreadSafeArgs) -> Pin<Box<dyn Future<Output = ()> + Send + Sync>>
+        F: Fn(ThreadSafeArgs) -> Pin<Box<dyn Future<Output = ()> + Send>>
             + Send
             + Sync
             + 'static;
 
     fn once_async<F>(&self, event: &str, callback: F) -> HandlerId
     where
-        F: Fn(ThreadSafeArgs) -> Pin<Box<dyn Future<Output = ()> + Send + Sync>>
+        F: Fn(ThreadSafeArgs) -> Pin<Box<dyn Future<Output = ()> + Send>>
             + Send
             + Sync
             + 'static;
@@ -44,6 +44,7 @@ pub trait ThreadSafeAsyncEventEmitter {
 pub struct MultiThreadEventEmitter {
     listeners: Arc<Mutex<HashMap<String, Vec<ThreadSafeHandler>>>>,
     id_counter: Arc<AtomicU64>,
+    handle: Option<tokio::runtime::Handle>,
 }
 
 impl MultiThreadEventEmitter {
@@ -51,7 +52,13 @@ impl MultiThreadEventEmitter {
         Self {
             listeners: Arc::new(Mutex::new(HashMap::new())),
             id_counter: Arc::new(AtomicU64::new(0)),
+            handle: None,
         }
+    }
+
+    pub fn set_handle(mut self, handle: tokio::runtime::Handle) -> Self {
+        self.handle = Some(handle);
+        self
     }
 
     fn get_id(&self) -> HandlerId {
@@ -128,22 +135,25 @@ impl ThreadSafeEventEmitter for MultiThreadEventEmitter {
 
         for callback in &callbacks {
             if let ThreadSafeCallback::Sync(cb) = callback {
-                cb(&args);
+                cb(args.clone());
             }
         }
 
-        for callback in callbacks {
-            if let ThreadSafeCallback::Async(cb) = callback {
-                let args_clone = args.clone();
-                tokio::spawn(async move {
-                    cb(&args_clone).await;
-                });
+        if let Some(handle) = &self.handle {
+            let handle = handle.clone();
+            for callback in callbacks {
+                if let ThreadSafeCallback::Async(cb) = callback {
+                    let args_clone = args.clone();
+
+                    handle.spawn(async move {
+                        cb(args_clone).await;
+                    });
+                }
             }
         }
 
         let mut listeners = self.listeners.lock().unwrap();
-        let handlers_opt = listeners.get_mut(event);
-        if let Some(handlers) = handlers_opt {
+        if let Some(handlers) = listeners.get_mut(event) {
             handlers.retain(|h| !h.once);
         }
     }
@@ -152,7 +162,7 @@ impl ThreadSafeEventEmitter for MultiThreadEventEmitter {
 impl ThreadSafeAsyncEventEmitter for MultiThreadEventEmitter {
     fn on_async<F>(&self, event: &str, callback: F) -> HandlerId
     where
-        F: Fn(ThreadSafeArgs) -> Pin<Box<dyn Future<Output = ()> + Send + Sync>>
+        F: Fn(ThreadSafeArgs) -> Pin<Box<dyn Future<Output = ()> + Send>>
             + Send
             + Sync
             + 'static,
@@ -176,7 +186,7 @@ impl ThreadSafeAsyncEventEmitter for MultiThreadEventEmitter {
 
     fn once_async<F>(&self, event: &str, callback: F) -> HandlerId
     where
-        F: Fn(ThreadSafeArgs) -> Pin<Box<dyn Future<Output = ()> + Send + Sync>>
+        F: Fn(ThreadSafeArgs) -> Pin<Box<dyn Future<Output = ()> + Send>>
             + Send
             + Sync
             + 'static,

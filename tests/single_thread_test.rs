@@ -27,7 +27,7 @@ fn test_event_arguments() {
 
     let received_args_clone = received_args.clone();
     emitter.on("data", move |args| {
-        for arg in args {
+        for arg in &*args {
             if let Some(s) = arg.downcast_ref::<String>() {
                 received_args_clone.borrow_mut().push(s.clone());
             }
@@ -184,7 +184,7 @@ fn test_multiple_data_types() {
 
     let results_clone = results.clone();
     emitter.on("mixed", move |args| {
-        for arg in args {
+        for arg in &*args {
             if let Some(num) = arg.downcast_ref::<i32>() {
                 results_clone.borrow_mut().push(format!("i32: {}", num));
             } else if let Some(b) = arg.downcast_ref::<bool>() {

@@ -2,6 +2,7 @@ use crate::event_emitters::{MultiThreadEventEmitter, ThreadSafeEventEmitter};
 use event_bus::*;
 use std::sync::{Arc, Mutex};
 use std::thread;
+use std::time::Duration;
 use tokio::task;
 
 #[test]
@@ -134,7 +135,7 @@ fn test_no_panic_when_event_not_found() {
 
 #[tokio::test]
 async fn test_sync_on_and_emit() {
-    let emitter = MultiThreadEventEmitter::new();
+    let emitter = MultiThreadEventEmitter::new().set_handle(tokio::runtime::Handle::current());
     let counter = Arc::new(Mutex::new(0));
     let counter_clone = counter.clone();
 
@@ -151,7 +152,7 @@ async fn test_sync_on_and_emit() {
 
 #[tokio::test]
 async fn test_async_on_and_emit() {
-    let emitter = MultiThreadEventEmitter::new();
+    let emitter = MultiThreadEventEmitter::new().set_handle(tokio::runtime::Handle::current());
     let counter = Arc::new(Mutex::new(0));
     let counter_clone = counter.clone();
 
@@ -172,7 +173,7 @@ async fn test_async_on_and_emit() {
 
 #[tokio::test]
 async fn test_sync_and_async_mixed() {
-    let emitter = MultiThreadEventEmitter::new();
+    let emitter = MultiThreadEventEmitter::new().set_handle(tokio::runtime::Handle::current());
     let sync_counter = Arc::new(Mutex::new(0));
     let async_counter = Arc::new(Mutex::new(0));
 
@@ -200,7 +201,7 @@ async fn test_sync_and_async_mixed() {
 
 #[tokio::test]
 async fn test_once_sync() {
-    let emitter = MultiThreadEventEmitter::new();
+    let emitter = MultiThreadEventEmitter::new().set_handle(tokio::runtime::Handle::current());
     let counter = Arc::new(Mutex::new(0));
     let counter_clone = counter.clone();
 
@@ -217,7 +218,7 @@ async fn test_once_sync() {
 
 #[tokio::test]
 async fn test_once_async() {
-    let emitter = MultiThreadEventEmitter::new();
+    let emitter = MultiThreadEventEmitter::new().set_handle(tokio::runtime::Handle::current());
     let counter = Arc::new(Mutex::new(0));
     let counter_clone = counter.clone();
 
@@ -240,7 +241,7 @@ async fn test_once_async() {
 
 #[tokio::test]
 async fn test_off_and_off_all() {
-    let emitter = MultiThreadEventEmitter::new();
+    let emitter = MultiThreadEventEmitter::new().set_handle(tokio::runtime::Handle::current());
     let counter = Arc::new(Mutex::new(0));
     let counter_clone = counter.clone();
 
@@ -265,4 +266,78 @@ async fn test_off_and_off_all() {
     emitter.off_all("multi_event");
     emitter.emit("multi_event", Arc::new(vec![]));
     assert_eq!(*counter2.lock().unwrap(), 0);
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+async fn multithread_event_test() {
+    let emitter =
+        Arc::new(MultiThreadEventEmitter::new().set_handle(tokio::runtime::Handle::current()));
+
+    let counter = Arc::new(tokio::sync::Mutex::new(0usize));
+
+    // -------- 注册同步回调 --------
+    emitter.on("e1", |_| {
+        // println!("[sync] received");
+    });
+
+    emitter.on("e1", |_| {
+        // println!("[sync2] received");
+    });
+
+    // -------- 注册异步回调 --------
+    {
+        let counter = counter.clone();
+        emitter.on_async("e1", move |_| {
+            let counter = counter.clone();
+            Box::pin(async move {
+                tokio::time::sleep(Duration::from_millis(5)).await;
+                let mut lock = counter.lock().await;
+                *lock += 1;
+            })
+        });
+    }
+
+    {
+        let counter = counter.clone();
+        emitter.on_async("e1", move |_| {
+            let counter = counter.clone();
+            Box::pin(async move {
+                tokio::time::sleep(Duration::from_millis(10)).await;
+                let mut lock = counter.lock().await;
+                *lock += 1;
+            })
+        });
+    }
+
+    // -------- 开启 10 个线程并发 emit --------
+    let mut handles = vec![];
+
+    for i in 0..10 {
+        let emitter = emitter.clone();
+        handles.push(thread::spawn(move || {
+            for _ in 0..100 {
+                emitter.emit("e1", Arc::new(vec![]));
+            }
+        }));
+    }
+
+    // 等待所有线程结束
+    for h in handles {
+        h.join().unwrap();
+    }
+
+    // 等待 async handler 完成（最多等待 3 秒）
+    tokio::time::sleep(Duration::from_secs(3)).await;
+
+    // -------- 验证 async handler 总运行次数 --------
+    let result = *counter.lock().await;
+
+    // 每次 emit 会触发 2 个 async handler
+    let expected = 10 * 100 * 2;
+
+    assert_eq!(
+        result, expected,
+        "Async callbacks incomplete: expected {}, got {}",
+        expected, result
+    );
 }
