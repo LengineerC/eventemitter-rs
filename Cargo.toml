@@ -8,7 +8,7 @@ license = "MIT"
 readme = "README.md"
 homepage = "https://github.com/LengineerC/eventemitter-rs"
 repository = "https://github.com/LengineerC/eventemitter-rs"
-keywords = ["event bus", "event"]
+keywords = ["event_bus", "event"]
 categories = [
     "data-structures",
     "communication",
