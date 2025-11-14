@@ -113,14 +113,12 @@ impl EventEmitter for SingleThreadEventEmitter {
     }
 
     fn emit(&self, event: &str, args: Rc<Vec<Arg>>) {
-        let callbacks: Vec<Callback> = {
-            let listeners = self.listeners.borrow();
-            if let Some(handlers) = listeners.get(event) {
-                handlers.iter().map(|h| h.callback.clone()).collect()
-            } else {
-                Vec::new()
-            }
-        };
+        let callbacks: Vec<Callback> = self
+            .listeners
+            .borrow()
+            .get(event)
+            .map(|handlers| handlers.iter().map(|h| h.callback.clone()).collect())
+            .unwrap_or_default();
 
         for callback in &callbacks {
             if let Callback::Sync(cb) = callback {

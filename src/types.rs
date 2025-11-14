@@ -12,4 +12,4 @@ pub type SyncCallback = Rc<dyn Fn(Args)>;
 pub type SyncThreadSafeCallback = Arc<dyn Fn(ThreadSafeArgs) + Send + Sync>;
 pub type AsyncCallback = Rc<dyn Fn(Args) -> Pin<Box<dyn Future<Output = ()>>>>;
 pub type AsyncThreadSafeCallback =
-    Arc<dyn Fn(ThreadSafeArgs) -> Pin<Box<dyn Future<Output = ()> + Send>> + Send + Sync>;
+    Arc<dyn Fn(ThreadSafeArgs) -> Pin<Box<dyn Future<Output = ()> + Send + Sync>> + Send + Sync>;

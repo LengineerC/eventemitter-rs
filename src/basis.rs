@@ -30,7 +30,7 @@ impl Debug for Handler {
 
 pub struct ThreadSafeHandler {
     pub id: HandlerId,
-    pub callback: SyncThreadSafeCallback,
+    pub callback: ThreadSafeCallback,
     pub once: bool,
 }
 

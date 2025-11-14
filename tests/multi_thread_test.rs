@@ -1,7 +1,8 @@
-use event_bus::*;
 use crate::event_emitters::{MultiThreadEventEmitter, ThreadSafeEventEmitter};
+use event_bus::*;
 use std::sync::{Arc, Mutex};
 use std::thread;
+use tokio::task;
 
 #[test]
 fn test_basic_emit_and_on() {
@@ -14,7 +15,7 @@ fn test_basic_emit_and_on() {
         *result_clone.lock().unwrap() = Some(msg.clone());
     });
 
-    emitter.emit("hello", vec![Box::new("world".to_string())]);
+    emitter.emit("hello", Arc::new(vec![Box::new("world".to_string())]));
 
     assert_eq!(result.lock().unwrap().clone(), Some("world".to_string()));
 }
@@ -29,8 +30,8 @@ fn test_once_listener_removed_after_first_emit() {
         *counter_clone.lock().unwrap() += 1;
     });
 
-    emitter.emit("ping", vec![]);
-    emitter.emit("ping", vec![]); // 第二次 emit 不应触发
+    emitter.emit("ping", Arc::new(vec![]));
+    emitter.emit("ping", Arc::new(vec![])); // 第二次 emit 不应触发
 
     assert_eq!(*counter.lock().unwrap(), 1);
 }
@@ -52,7 +53,7 @@ fn test_off_removes_specific_listener() {
 
     emitter.off("count", id1);
 
-    emitter.emit("count", vec![]);
+    emitter.emit("count", Arc::new(vec![]));
     assert_eq!(*counter.lock().unwrap(), 10); // 只触发了第二个 listener
 }
 
@@ -67,7 +68,7 @@ fn test_off_all_removes_all_listeners() {
     });
 
     emitter.off_all("count");
-    emitter.emit("count", vec![]);
+    emitter.emit("count", Arc::new(vec![]));
     assert_eq!(*counter.lock().unwrap(), 0);
 }
 
@@ -87,7 +88,7 @@ fn test_thread_safety_with_multiple_threads() {
         .map(|i| {
             let e = emitter.clone();
             thread::spawn(move || {
-                e.emit("add", vec![Box::new(i), Box::new(1)]);
+                e.emit("add", Arc::new(vec![Box::new(i), Box::new(1)]));
             })
         })
         .collect();
@@ -114,7 +115,10 @@ fn test_emit_with_multiple_args_types() {
 
     emitter.emit(
         "concat",
-        vec![Box::new("Hello".to_string()), Box::new("Rust".to_string())],
+        Arc::new(vec![
+            Box::new("Hello".to_string()),
+            Box::new("Rust".to_string()),
+        ]),
     );
 
     assert_eq!(&*output.lock().unwrap(), "Hello Rust");
@@ -123,7 +127,142 @@ fn test_emit_with_multiple_args_types() {
 #[test]
 fn test_no_panic_when_event_not_found() {
     let emitter = MultiThreadEventEmitter::new();
-    emitter.emit("non_existent_event", vec![]);
+    emitter.emit("non_existent_event", Arc::new(vec![]));
     // just ensure it doesn't panic
     assert!(true);
+}
+
+#[tokio::test]
+async fn test_sync_on_and_emit() {
+    let emitter = MultiThreadEventEmitter::new();
+    let counter = Arc::new(Mutex::new(0));
+    let counter_clone = counter.clone();
+
+    emitter.on("sync_event", move |_args| {
+        let mut val = counter_clone.lock().unwrap();
+        *val += 1;
+    });
+
+    emitter.emit("sync_event", Arc::new(vec![]));
+    emitter.emit("sync_event", Arc::new(vec![]));
+
+    assert_eq!(*counter.lock().unwrap(), 2);
+}
+
+#[tokio::test]
+async fn test_async_on_and_emit() {
+    let emitter = MultiThreadEventEmitter::new();
+    let counter = Arc::new(Mutex::new(0));
+    let counter_clone = counter.clone();
+
+    emitter.on_async("async_event", move |_args| {
+        let counter_clone = counter_clone.clone();
+        Box::pin(async move {
+            let mut val = counter_clone.lock().unwrap();
+            *val += 1;
+        })
+    });
+
+    emitter.emit("async_event", Arc::new(vec![]));
+    // 等待所有异步任务执行
+    task::yield_now().await;
+
+    assert_eq!(*counter.lock().unwrap(), 1);
+}
+
+#[tokio::test]
+async fn test_sync_and_async_mixed() {
+    let emitter = MultiThreadEventEmitter::new();
+    let sync_counter = Arc::new(Mutex::new(0));
+    let async_counter = Arc::new(Mutex::new(0));
+
+    let sync_clone = sync_counter.clone();
+    emitter.on("mixed_event", move |_args| {
+        let mut val = sync_clone.lock().unwrap();
+        *val += 1;
+    });
+
+    let async_clone = async_counter.clone();
+    emitter.on_async("mixed_event", move |_args| {
+        let async_clone = async_clone.clone();
+        Box::pin(async move {
+            let mut val = async_clone.lock().unwrap();
+            *val += 1;
+        })
+    });
+
+    emitter.emit("mixed_event", Arc::new(vec![]));
+    task::yield_now().await;
+
+    assert_eq!(*sync_counter.lock().unwrap(), 1);
+    assert_eq!(*async_counter.lock().unwrap(), 1);
+}
+
+#[tokio::test]
+async fn test_once_sync() {
+    let emitter = MultiThreadEventEmitter::new();
+    let counter = Arc::new(Mutex::new(0));
+    let counter_clone = counter.clone();
+
+    emitter.once("once_event", move |_args| {
+        let mut val = counter_clone.lock().unwrap();
+        *val += 1;
+    });
+
+    emitter.emit("once_event", Arc::new(vec![]));
+    emitter.emit("once_event", Arc::new(vec![]));
+
+    assert_eq!(*counter.lock().unwrap(), 1);
+}
+
+#[tokio::test]
+async fn test_once_async() {
+    let emitter = MultiThreadEventEmitter::new();
+    let counter = Arc::new(Mutex::new(0));
+    let counter_clone = counter.clone();
+
+    emitter.once_async("once_async_event", move |_args| {
+        let counter_clone = counter_clone.clone();
+        Box::pin(async move {
+            let mut val = counter_clone.lock().unwrap();
+            *val += 1;
+        })
+    });
+
+    emitter.emit("once_async_event", Arc::new(vec![]));
+    task::yield_now().await;
+
+    emitter.emit("once_async_event", Arc::new(vec![]));
+    task::yield_now().await;
+
+    assert_eq!(*counter.lock().unwrap(), 1);
+}
+
+#[tokio::test]
+async fn test_off_and_off_all() {
+    let emitter = MultiThreadEventEmitter::new();
+    let counter = Arc::new(Mutex::new(0));
+    let counter_clone = counter.clone();
+
+    let id = emitter.on("remove_event", move |_args| {
+        let mut val = counter_clone.lock().unwrap();
+        *val += 1;
+    });
+
+    emitter.emit("remove_event", Arc::new(vec![]));
+    assert_eq!(*counter.lock().unwrap(), 1);
+
+    assert!(emitter.off("remove_event", id));
+    emitter.emit("remove_event", Arc::new(vec![]));
+    assert_eq!(*counter.lock().unwrap(), 1); // 没增加
+
+    let counter2 = Arc::new(Mutex::new(0));
+    let counter2_clone = counter2.clone();
+    emitter.on("multi_event", move |_args| {
+        let mut val = counter2_clone.lock().unwrap();
+        *val += 1;
+    });
+    emitter.off_all("multi_event");
+    emitter.emit("multi_event", Arc::new(vec![]));
+    assert_eq!(*counter2.lock().unwrap(), 0);
 }
