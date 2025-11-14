@@ -3,6 +3,20 @@ name = "event_bus"
 version = "0.1.0"
 edition = "2024"
 authors = ["LengineerC"]
+description = "A simple Node.js-style event bus"
+license = "MIT"
+readme = "README.md"
+homepage = "https://github.com/LengineerC/eventemitter-rs"
+repository = "https://github.com/LengineerC/eventemitter-rs"
+keywords = ["event bus", "event"]
+categories = [
+    "data-structures",
+    "communication",
+    "utilities",
+    "asynchronous",
+    "concurrent",
+]
+exclude = ["target/*", "tests/*"]
 
 [dependencies]
 tokio = { version = "1.0", features = ["full", "rt-multi-thread"] }
