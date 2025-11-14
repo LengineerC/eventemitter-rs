@@ -1,5 +1,4 @@
-use crate::event_emitters::{MultiThreadEventEmitter, ThreadSafeEventEmitter};
-use event_bus::*;
+use nodevent::*;
 use std::sync::{Arc, Mutex};
 use std::thread;
 use std::time::Duration;

@@ -1,5 +1,5 @@
 [package]
-name = "event_bus"
+name = "nodevent"
 version = "0.1.0"
 edition = "2024"
 authors = ["LengineerC"]

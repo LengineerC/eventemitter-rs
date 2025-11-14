@@ -1,4 +1,4 @@
-# EventEmitter - Rust
+# nodevent
 
 A Node.js-style event bus in Rust with synchronous and asynchronous support (via **Tokio**).
 
